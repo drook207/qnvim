@@ -4,7 +4,7 @@
 #pragma once
 
 #include <extensionsystem/iplugin.h>
-#include <texteditor/plaintexteditorfactory.h>
+#include <texteditor/texteditor.h>
 
 namespace QNVim {
 namespace Internal {
@@ -19,7 +19,7 @@ class QNVimPlugin : public ExtensionSystem::IPlugin {
   public:
     QNVimPlugin() = default;
 
-    bool initialize(const QStringList &, QString *) override;
+    Utils::Result<> initialize(const QStringList &) override;
     void extensionsInitialized() override;
     ShutdownFlag aboutToShutdown() override;
 
@@ -31,16 +31,12 @@ class QNVimPlugin : public ExtensionSystem::IPlugin {
     std::unique_ptr<QNVimCore> m_core;
 };
 
-class HelpEditorFactory : public TextEditor::PlainTextEditorFactory {
-    Q_OBJECT
-
+class HelpEditorFactory : public TextEditor::TextEditorFactory {
   public:
     explicit HelpEditorFactory();
 };
 
-class TerminalEditorFactory : public TextEditor::PlainTextEditorFactory {
-    Q_OBJECT
-
+class TerminalEditorFactory : public TextEditor::TextEditorFactory {
   public:
     explicit TerminalEditorFactory();
 };

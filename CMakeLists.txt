@@ -3,15 +3,13 @@
 
 cmake_minimum_required(VERSION 3.22)
 
-if (POLICY CMP0135)
-  cmake_policy(SET CMP0135 NEW)
-endif()
-
 project(QNVim)
 
 option(FETCH_QTC "Download Qt Creator development files automatically" ON)
+find_package(Qt6 REQUIRED COMPONENTS Widgets Network)
 
 add_subdirectory(external)
+message(STATUS "CMAKE_PREFIX_PATH: ${CMAKE_PREFIX_PATH}")
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_AUTOMOC ON)
@@ -22,10 +20,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 if (MSVC)
-    add_compile_options("/permissive-")
+  add_compile_options("/permissive-")
 endif()
 
-find_package(QtCreator REQUIRED COMPONENTS Core)
-find_package(Qt6 REQUIRED COMPONENTS Widgets Network)
 
+find_package(QtCreator REQUIRED COMPONENTS Core)
 add_subdirectory(src)

@@ -5,15 +5,10 @@ include(FetchContent)
 
 FetchContent_Declare(
   neovimqt
-  GIT_REPOSITORY https://github.com/gikari/neovim-qt.git
-  GIT_TAG c84f81712639140f910a1d38acb8edcb4509dc4d # qt6 branch
+  GIT_REPOSITORY https://github.com/equalsraf/neovim-qt
+  GIT_TAG master
 )
+set(WITH_QT "Qt6" CACHE STRING "Specify which Qt version to use with neovim-qt")
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
-FetchContent_GetProperties(neovimqt)
-if(NOT neovimqt_POPULATED)
-  FetchContent_Populate(neovimqt)
-
-  # We use this, instead of MakeAvailable,
-  # so that neovimqt is not installed in CI artifacts
-  add_subdirectory(${neovimqt_SOURCE_DIR} ${neovimqt_BINARY_DIR} EXCLUDE_FROM_ALL)
-endif()
+FetchContent_MakeAvailable(neovimqt)

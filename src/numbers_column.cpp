@@ -27,7 +27,7 @@ void NumbersColumn::setEditor(TextEditor::TextEditorWidget *editor) {
 
     if (mEditor) {
         mEditor->removeEventFilter(this);
-        disconnect(mEditor, &QPlainTextEdit::cursorPositionChanged,
+        disconnect(mEditor, &TextEditor::TextEditorWidget::cursorPositionChanged,
                    this, &NumbersColumn::updateGeometry);
         disconnect(mEditor->verticalScrollBar(), &QScrollBar::valueChanged,
                    this, &NumbersColumn::updateGeometry);
@@ -40,7 +40,7 @@ void NumbersColumn::setEditor(TextEditor::TextEditorWidget *editor) {
 
     if (mEditor) {
         mEditor->installEventFilter(this);
-        connect(mEditor, &QPlainTextEdit::cursorPositionChanged,
+        connect(mEditor, &TextEditor::TextEditorWidget::cursorPositionChanged,
                 this, &NumbersColumn::updateGeometry);
         connect(mEditor->verticalScrollBar(), &QScrollBar::valueChanged,
                 this, &NumbersColumn::updateGeometry);

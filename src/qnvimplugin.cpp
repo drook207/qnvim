@@ -4,9 +4,9 @@
 
 #include "qnvimplugin.h"
 
-#include "qnvimcore.h"
 #include "log.h"
 #include "qnvimconstants.h"
+#include "qnvimcore.h"
 
 #include <coreplugin/actionmanager/actioncontainer.h>
 #include <coreplugin/actionmanager/actionmanager.h>
@@ -17,9 +17,8 @@
 namespace QNVim {
 namespace Internal {
 
-bool QNVimPlugin::initialize(const QStringList &arguments, QString *errorString) {
+Utils::Result<> QNVimPlugin::initialize(const QStringList &arguments) {
     Q_UNUSED(arguments)
-    Q_UNUSED(errorString)
 
     new HelpEditorFactory();
     new TerminalEditorFactory();
@@ -39,7 +38,7 @@ bool QNVimPlugin::initialize(const QStringList &arguments, QString *errorString)
 
     m_core = std::make_unique<QNVimCore>();
 
-    return true;
+    return {};
 }
 
 void QNVimPlugin::extensionsInitialized() {
@@ -72,13 +71,13 @@ void QNVimPlugin::toggleQNVim() {
         m_core = std::make_unique<QNVimCore>();
 }
 
-HelpEditorFactory::HelpEditorFactory() : PlainTextEditorFactory() {
+HelpEditorFactory::HelpEditorFactory() : TextEditorFactory() {
     setId("Help");
     setDisplayName("Help");
     addMimeType("text/plain");
 }
 
-TerminalEditorFactory::TerminalEditorFactory() : PlainTextEditorFactory() {
+TerminalEditorFactory::TerminalEditorFactory() : TextEditorFactory() {
     setId("Terminal");
     setDisplayName("Terminal");
     addMimeType("text/plain");

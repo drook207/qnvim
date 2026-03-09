@@ -17,7 +17,8 @@
 #include <neovimconnector.h>
 
 #include <projectexplorer/project.h>
-#include <projectexplorer/session.h>
+#include <projectexplorer/projectmanager.h>
+#include <coreplugin/session.h>
 
 #include <texteditor/displaysettings.h>
 #include <texteditor/fontsettings.h>
@@ -283,7 +284,7 @@ void QNVimCore::syncSelectionToVim(Core::IEditor *editor) {
                // because we create cursors one after another, where
                // main cursor is at the end or in the beginning.
                // @see syncCursorFromVim
-        auto lastCursor = mainCursor == *mtc.begin() ? *(mtc.end() - 1) : *mtc.begin();
+        auto lastCursor = mainCursor == *mtc.begin() ? *std::prev(mtc.end()) : *mtc.begin();
         auto nvimAnchor = lastCursor.anchor();
 
         line = QStringView(text).left(nvimPos).count('\n') + 1;
@@ -592,7 +593,7 @@ void QNVimCore::syncFromVim() {
 }
 
 void QNVimCore::triggerCommand(const QByteArray &commandId) {
-    Core::ActionManager::command(commandId.constData())->action()->trigger();
+    Core::ActionManager::command(Utils::Id::fromString(QString::fromUtf8(commandId)))->action()->trigger();
 }
 
 void QNVimCore::saveCursorFlashTime(int cursorFlashTime) {
@@ -648,7 +649,7 @@ void QNVimCore::editorOpened(Core::IEditor *editor) {
     if (!widget)
         return;
 
-    auto project = ProjectExplorer::SessionManager::projectForFile(
+    auto project = ProjectExplorer::ProjectManager::projectForFile(
         Utils::FilePath::fromString(filename));
     qDebug(Main) << project;
     if (project) {
@@ -801,7 +802,7 @@ void QNVimCore::handleNotification(const QByteArray &name, const QVariantList &a
             } else if (cmd == "BufWriteCmd") {
                 if (mEditors.contains(buffer)) {
                     QString currentFilename = this->filename(mEditors[buffer]);
-                    if (mEditors[buffer]->document()->save(nullptr, Utils::FilePath::fromString(filename))) {
+                    if (mEditors[buffer]->document()->save(Utils::FilePath::fromString(filename))) {
                         if (currentFilename != filename) {
                             mEditors.remove(buffer);
                             mChangedTicks.remove(buffer);
