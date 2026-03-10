@@ -3,5 +3,5 @@
 
 #include "log.h"
 
-Q_LOGGING_CATEGORY(Main, "qtcreator.plugin.qnvim.main")
-Q_LOGGING_CATEGORY(Buffer, "qtcreator.plugin.qnvim.buffer", QtWarningMsg)
+Q_LOGGING_CATEGORY(lcQNvimCore, "qtcreator.plugin.qnvim.core")
+Q_LOGGING_CATEGORY(lcNVimBuffer, "qtcreator.plugin.qnvim.buffer", QtWarningMsg)

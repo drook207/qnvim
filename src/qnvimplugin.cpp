@@ -63,7 +63,7 @@ bool QNVimPlugin::eventFilter(QObject *object, QEvent *event) {
 }
 
 void QNVimPlugin::toggleQNVim() {
-    qDebug(Main) << "QNVimPlugin::toggleQNVim";
+    qDebug(lcQNvimCore) << "QNVimPlugin::toggleQNVim";
 
     if (m_core)
         m_core = nullptr;

@@ -3,29 +3,30 @@
 // SPDX-License-Identifier: MIT
 #include "qnvimcore.h"
 
-#include "numbers_column.h"
 #include "log.h"
+#include "numbers_column.h"
 
 #include <coreplugin/actionmanager/actionmanager.h>
 #include <coreplugin/editormanager/editormanager.h>
 #include <coreplugin/editormanager/ieditor.h>
 #include <coreplugin/icontext.h>
+#include <coreplugin/icore.h>
 #include <coreplugin/statusbarmanager.h>
 
 #include <gui/input.h>
 #include <msgpackrequest.h>
 #include <neovimconnector.h>
 
+#include <coreplugin/session.h>
 #include <projectexplorer/project.h>
 #include <projectexplorer/projectmanager.h>
-#include <coreplugin/session.h>
 
 #include <texteditor/displaysettings.h>
 #include <texteditor/fontsettings.h>
+#include <texteditor/tabsettings.h>
 #include <texteditor/textdocument.h>
 #include <texteditor/texteditor.h>
 #include <texteditor/texteditorsettings.h>
-#include <texteditor/tabsettings.h>
 
 #include <utils/differ.h>
 #include <utils/fancylineedit.h>
@@ -54,7 +55,7 @@ namespace Internal {
 
 QNVimCore::QNVimCore(QObject *parent)
     : QObject{parent} {
-    qDebug(Main) << "QNVimCore::constructor";
+    qDebug(lcQNvimCore) << "QNVimCore::constructor";
 
     mCMDLine = new QPlainTextEdit;
     Core::StatusBarManager::addStatusBarWidget(mCMDLine, Core::StatusBarManager::First);
@@ -119,7 +120,8 @@ function! SetCursor(line, col)\n\
     call cursor(a:line, a:col)\n\
 endfunction\n\
 autocmd VimEnter * let $MYQVIMRC=substitute(substitute($MYVIMRC, 'init.vim$', 'qnvim.vim', 'g'), 'init.lua$', 'qnvim.vim', 'g') | source $MYQVIMRC")
-                                                      .arg(mNVim->channel()).toUtf8());
+                                        .arg(mNVim->channel())
+                                        .toUtf8());
         connect(mNVim->api2(), &NeovimQt::NeovimApi2::neovimNotification,
                 this, &QNVimCore::handleNotification);
 
@@ -136,10 +138,10 @@ autocmd VimEnter * let $MYQVIMRC=substitute(substitute($MYVIMRC, 'init.vim$', 'q
         request->setTimeout(10000);
         connect(request, &NeovimQt::MsgpackRequest::timeout, mNVim, &NeovimQt::NeovimConnector::fatalTimeout);
         connect(request, &NeovimQt::MsgpackRequest::timeout, [=]() {
-            qCritical(Main) << "Neovim: Connection timed out!";
+            qCritical(lcQNvimCore) << "Neovim: Connection timed out!";
         });
         connect(request, &NeovimQt::MsgpackRequest::finished, this, [=]() {
-            qInfo(Main) << "Neovim: attached!";
+            qInfo(lcQNvimCore) << "Neovim: attached!";
 
             auto pCurrentEditor = Core::EditorManager::currentEditor();
             if (pCurrentEditor)
@@ -151,8 +153,7 @@ autocmd VimEnter * let $MYQVIMRC=substitute(substitute($MYVIMRC, 'init.vim$', 'q
     });
 }
 
-QNVimCore::~QNVimCore()
-{
+QNVimCore::~QNVimCore() {
     qobject_cast<QWidget *>(mCMDLine->parentWidget()->children()[2])->show();
     mCMDLine->deleteLater();
 
@@ -203,7 +204,7 @@ QString QNVimCore::filename(Core::IEditor *editor) const {
     if (!editor)
         return QString();
 
-    auto filename = editor->document()->filePath().toString();
+    auto filename = editor->document()->filePath().toUrlishString();
     if (filename.isEmpty())
         filename = editor->document()->displayName();
 
@@ -274,16 +275,16 @@ void QNVimCore::syncSelectionToVim(Core::IEditor *editor) {
     if (mtc.hasMultipleCursors()) {
         auto mainCursor = mtc.mainCursor();
 
-               // We should always use main cursor pos here,
-               // because it is the cursor user controls with hjkl
+        // We should always use main cursor pos here,
+        // because it is the cursor user controls with hjkl
         auto nvimPos = mainCursor.position();
 
-               // NOTE: Theoretically, it is not always the case
-               // that the main cursor is at the ends of mtc array,
-               // but for creating our own block selections it works,
-               // because we create cursors one after another, where
-               // main cursor is at the end or in the beginning.
-               // @see syncCursorFromVim
+        // NOTE: Theoretically, it is not always the case
+        // that the main cursor is at the ends of mtc array,
+        // but for creating our own block selections it works,
+        // because we create cursors one after another, where
+        // main cursor is at the end or in the beginning.
+        // @see syncCursorFromVim
         auto lastCursor = mainCursor == *mtc.begin() ? *std::prev(mtc.end()) : *mtc.begin();
         auto nvimAnchor = lastCursor.anchor();
 
@@ -333,7 +334,8 @@ void QNVimCore::syncSelectionToVim(Core::IEditor *editor) {
                                     .arg(vLine)
                                     .arg(vCol)
                                     .arg(line)
-                                    .arg(col).toUtf8());
+                                    .arg(col)
+                                    .toUtf8());
 }
 
 void QNVimCore::syncCursorFromVim(const QVariantList &pos, const QVariantList &vPos, QByteArray mode) {
@@ -395,15 +397,15 @@ void QNVimCore::syncCursorFromVim(const QVariantList &pos, const QVariantList &v
             ++position;
 
         auto document = textEditor->textCursor().document();
-        const auto& tabs = textEditor->textDocument()->tabSettings();
+        const auto &tabs = textEditor->textDocument()->tabSettings();
 
         const auto firstBlock = document->findBlock(anchor);
         const auto lastBlock = document->findBlock(position);
         const auto localAnchor = tabs.columnAt(firstBlock.text(), anchor - firstBlock.position());
         const auto localPos = tabs.columnAt(lastBlock.text(), position - lastBlock.position());
 
-               // Get next block no matter the direction of selection
-        auto after = [&](const auto& block) {
+        // Get next block no matter the direction of selection
+        auto after = [&](const auto &block) {
             if (anchor < position)
                 return block.next();
             else
@@ -411,13 +413,13 @@ void QNVimCore::syncCursorFromVim(const QVariantList &pos, const QVariantList &v
         };
 
         auto mtc = Utils::MultiTextCursor();
-        for (auto curBlock = firstBlock; //
+        for (auto curBlock = firstBlock;                         //
              curBlock.isValid() && curBlock != after(lastBlock); //
              curBlock = after(curBlock)) {
 
             auto columnsCountInCurBlock = tabs.columnCountForText(curBlock.text());
 
-                   // Skip cursor, if it goes out of the block
+            // Skip cursor, if it goes out of the block
             if (columnsCountInCurBlock < localAnchor && columnsCountInCurBlock < localPos)
                 continue;
 
@@ -518,7 +520,7 @@ void QNVimCore::syncFromVim() {
 
         mChangedTicks[bufferNumber] = changedtick;
 
-        qDebug(Main) << "QNVimPlugin::syncFromVim";
+        qDebug(lcQNvimCore) << "QNVimPlugin::syncFromVim";
 
         auto request = mNVim->api2()->nvim_buf_get_lines(bufferNumber, 0, -1, true);
         connect(request, &NeovimQt::MsgpackRequest::finished, this, [=](quint32, quint64, const QVariant &lines) {
@@ -643,7 +645,7 @@ void QNVimCore::editorOpened(Core::IEditor *editor) {
 
     QString filename(this->filename(editor));
     mText.clear();
-    qDebug(Main) << "Opened " << filename << mSettingBufferFromVim;
+    qDebug(lcQNvimCore) << "Opened " << filename << mSettingBufferFromVim;
 
     QWidget *widget = editor->widget();
     if (!widget)
@@ -651,7 +653,7 @@ void QNVimCore::editorOpened(Core::IEditor *editor) {
 
     auto project = ProjectExplorer::ProjectManager::projectForFile(
         Utils::FilePath::fromString(filename));
-    qDebug(Main) << project;
+    qDebug(lcQNvimCore) << project;
     if (project) {
         QString projectDirectory = project->projectDirectory().toString();
         if (!projectDirectory.isEmpty())
@@ -699,27 +701,21 @@ void QNVimCore::editorOpened(Core::IEditor *editor) {
                 QString bufferType = mBufferType[buffer];
                 if (!mEditors.contains(buffer) or (bufferType != "acwrite" and !bufferType.isEmpty()))
                     return;
-                syncToVim(editor);
-            },
-            Qt::QueuedConnection);
+                syncToVim(editor); }, Qt::QueuedConnection);
         connect(textEditor, &TextEditor::TextEditorWidget::cursorPositionChanged, this, [=]() {
                 if (Core::EditorManager::currentEditor() != editor)
                     return;
                 QString newText = textEditor->toPlainText();
                 if (newText != mText)
                     return;
-                syncCursorToVim(editor);
-            },
-            Qt::QueuedConnection);
+                syncCursorToVim(editor); }, Qt::QueuedConnection);
         connect(textEditor, &TextEditor::TextEditorWidget::selectionChanged, this, [=]() {
                 if (Core::EditorManager::currentEditor() != editor)
                     return;
                 QString newText = textEditor->toPlainText();
                 if (newText != mText)
                     return;
-                syncSelectionToVim(editor);
-            },
-            Qt::QueuedConnection);
+                syncSelectionToVim(editor); }, Qt::QueuedConnection);
         connect(textEditor->textDocument(), &TextEditor::TextDocument::fontSettingsChanged,
                 this, &QNVimCore::updateCursorSize);
     }
@@ -734,7 +730,7 @@ void QNVimCore::editorOpened(Core::IEditor *editor) {
 }
 
 void QNVimCore::editorAboutToClose(Core::IEditor *editor) {
-    qDebug(Main) << "QNVimPlugin::editorAboutToClose";
+    qDebug(lcQNvimCore) << "QNVimPlugin::editorAboutToClose";
     if (!mBuffers.contains(editor))
         return;
 
@@ -779,7 +775,7 @@ void QNVimCore::handleNotification(const QByteArray &name, const QVariantList &a
         QByteArray method = args.first().toByteArray();
         QVariantList methodArgs = args.mid(1);
         if (method == "triggerCommand") {
-            for (const auto& methodArg : methodArgs)
+            for (const auto &methodArg : methodArgs)
                 triggerCommand(methodArg.toByteArray());
         } else if (method == "fileAutoCommand") {
             QByteArray cmd = methodArgs.first().toByteArray();
@@ -850,7 +846,7 @@ void QNVimCore::handleNotification(const QByteArray &name, const QVariantList &a
                                 e = Core::EditorManager::openEditor(Utils::FilePath::fromString(filename));
                             }
                         } else {
-                            qDebug(Main) << 123;
+                            qDebug(lcQNvimCore) << 123;
                             if (bufferType == "terminal") {
                                 e = Core::EditorManager::openEditorWithContents("Terminal", &filename, QByteArray(), filename);
                             } else if (bufferType == "help") {
@@ -901,7 +897,7 @@ void QNVimCore::redraw(const QVariantList &args) {
     bool shouldSync = false;
     bool flush = false;
 
-    for (const auto& arg : args) {
+    for (const auto &arg : args) {
         QVariantList line = arg.toList();
         QByteArray command = line.first().toByteArray();
         QVariantList args = line.mid(1).constFirst().toList();
@@ -912,15 +908,14 @@ void QNVimCore::redraw(const QVariantList &args) {
 
         if (command == "flush")
             flush = true;
-
         if (command == "win_pos") {
-            qDebug(Main) << line;
+            qDebug(lcQNvimCore) << QStringLiteral("Current nvim command: <%0> with arguments: ").arg(command) << args;
         } else if (command == "win_float_pos") {
-            qDebug(Main) << line;
+            qDebug(lcQNvimCore) << QStringLiteral("Current nvim command: <%0> with arguments: ").arg(command) << args;
         } else if (command == "win_hide") {
-            qDebug(Main) << line;
+            qDebug(lcQNvimCore) << QStringLiteral("Current nvim command: <%0> with arguments: ").arg(command) << args;
         } else if (command == "win_close") {
-            qDebug(Main) << line;
+            qDebug(lcQNvimCore) << QStringLiteral("Current nvim command: <%0> with arguments: ").arg(command) << args;
         } else if (command == "bell") {
             QApplication::beep();
         } else if (command == "mode_change") {
@@ -964,7 +959,7 @@ void QNVimCore::redraw(const QVariantList &args) {
             QVariantList contentList = args[0].toList();
             mCMDLineContent.clear();
 
-            for (const auto& contentItem : contentList)
+            for (const auto &contentItem : contentList)
                 mCMDLineContent += QString::fromUtf8(contentItem.toList()[1].toByteArray());
 
             mCMDLinePos = args[1].toInt();
@@ -978,7 +973,7 @@ void QNVimCore::redraw(const QVariantList &args) {
         } else if (command == "msg_show") {
             QVariantList contentList = args[1].toList();
             mMessageLineDisplay.clear();
-            for (const auto& contentItem : contentList)
+            for (const auto &contentItem : contentList)
                 mMessageLineDisplay += QString::fromUtf8(contentItem.toList()[1].toByteArray());
         } else if (command == "msg_clear") {
             mMessageLineDisplay.clear();
@@ -986,10 +981,10 @@ void QNVimCore::redraw(const QVariantList &args) {
             QVariantList entries = args[1].toList();
             mMessageLineDisplay.clear();
 
-            for (const auto& entry : entries) {
+            for (const auto &entry : entries) {
                 QVariantList contentList = entry.toList()[1].toList();
 
-                for (const auto& contentItem : contentList)
+                for (const auto &contentItem : contentList)
                     mMessageLineDisplay += QString::fromUtf8(contentItem.toList()[1].toByteArray()) + '\n';
             }
         }
@@ -1013,7 +1008,7 @@ void QNVimCore::redraw(const QVariantList &args) {
         auto width = 0;
 
         const auto lines = text.split(endLineRegExp);
-        for (const auto& line : lines) {
+        for (const auto &line : lines) {
             width += commandLineFontMetric.horizontalAdvance(line);
         }
 

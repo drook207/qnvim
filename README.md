@@ -3,9 +3,10 @@
 
 # qnvim
 
-qnvim is a Qt Creator plugin for users who like editing text in Neovim/Vim and also want to use Qt Creator features. This plugin combines the power of Neovim and Qt Creator.
-
-With qnvim, you can run your `init.lua`/`init.vim`, all your Neovim plugins, and any tweaks made in `init.vim`/`init.lua`.
+qnvim is a Qt Creator plugin that embeds a real Neovim instance as the text editor.
+It lets you use your full `init.lua` / `init.vim`, all your Neovim plugins, and every
+customisation you have — while keeping Qt Creator's project management, code navigation,
+debugger, and build system at your fingertips.
 
 <p align="center">
   <a href="https://www.youtube.com/watch?v=twwnnduujzw">
@@ -13,53 +14,115 @@ With qnvim, you can run your `init.lua`/`init.vim`, all your Neovim plugins, and
   </a>
 </p>
 
+## How it works
+
+qnvim spawns a headless Neovim process and connects to it over the msgpack-RPC channel
+provided by [neovim-qt](https://github.com/equalsraf/neovim-qt).  Every open file in Qt
+Creator is mirrored as a Neovim buffer.  Keyboard input is forwarded to Neovim; cursor
+movements, selections, and text changes flow back to the Qt Creator editor in real time.
+The Neovim command line is embedded in the Qt Creator status bar.
+
+A set of Ex commands is registered automatically so you can drive Qt Creator's build
+system from Neovim:
+
+| Ex command        | Qt Creator action                     |
+|-------------------|---------------------------------------|
+| `:Build`          | Build active project                  |
+| `:BuildAll`       | Build all projects in session         |
+| `:Rebuild`        | Rebuild active project                |
+| `:RebuildAll`     | Rebuild all projects in session       |
+| `:Clean`          | Clean active project                  |
+| `:CleanAll`       | Clean all projects in session         |
+| `:Deploy`         | Deploy active project                 |
+| `:DeployAll`      | Deploy all projects in session        |
+| `:Run`            | Run active project                    |
+| `:Debug`          | Start debugger                        |
+| `:DebugContinue`  | Continue in debugger                  |
+| `:QMake`          | Run qmake                             |
+| `:Target`         | Quick-select build target             |
+
 ## Status
 
-qnvim is under development, but it's mostly stable and usable. Currently, there are some known issues:
+qnvim is under active development and is mostly stable for daily use.  Known limitations:
 
-- It doesn't support splits or windows
-- It should use vim highlights for buffers that Qt Creator doesn't support (like Vim helpfiles and many others)
+- Splits and windows are not supported (Neovim operates as a single-pane UI).
+- Buffers that rely on Neovim-specific highlights (e.g. Vim help pages, special file types)
+  may not render colours correctly — Qt Creator's own syntax highlighting takes precedence
+  for source files.
 
-Most Neovim plugins should work fine, except for a few that rely on highlights or special buffers. Qt Creator already provides excellent highlighting for C++ and QML, so that's not a problem. Work is in progress to handle all types of buffers.
+Most Neovim plugins work out of the box.  Plugins that depend on custom highlight groups or
+terminal emulation inside Neovim splits may have limited functionality.
 
-Please report any issues you encounter and consider contributing to this project if you have the time.
+Please [report issues](https://github.com/sassanh/qnvim/issues) and consider contributing
+if you have the time.
 
-## How does qnvim compare with Qt Creator Vim mode?
+## How does qnvim compare with Qt Creator's built-in Vim mode?
 
-qnvim provides a smoother integration of Neovim within Qt Creator by running an actual instance of Neovim. This allows you to use all your Neovim plugins and customizations directly in Qt Creator. On the other hand, Qt Creator Vim mode is a built-in feature that emulates Vim, offering basic Vim keybindings and functionality but does not support the full range of Neovim features and plugins. The main difference between the two is that qnvim runs a real instance of Neovim, while Qt Creator Vim mode is an emulation of Vim.
+| | qnvim | Qt Creator Vim Mode |
+|---|---|---|
+| Neovim engine | Real Neovim process | Vim emulation layer |
+| `init.lua` / `init.vim` | Full support | Not supported |
+| Neovim plugins | Full support | Not supported |
+| Performance | Near-native | Native |
+| Qt Creator integration | Full | Full |
+| Splits / windows | Not yet | N/A |
 
-## Installation instructions
+The bottom line: qnvim runs an actual Neovim instance so everything you already have in
+your Neovim configuration just works.  Qt Creator Vim mode is a self-contained emulation
+that requires no external dependencies but does not support the Neovim plugin ecosystem.
 
-### From Releases section
+## Installation
 
-Go to the releases section and download the version of the plugin matching your Qt Creator version and operating system. Then:
+### From the Releases page
 
-1. Open Qt Creator > Help > About Plugins > Install Plugin...
-2. Select the plugin you've downloaded earlier and relaunch Qt Creator.
+Download the plugin archive that matches your Qt Creator **major.minor** version and
+operating system from the [Releases](https://github.com/sassanh/qnvim/releases) section.
+
+1. Open Qt Creator → **Help** → **About Plugins** → **Install Plugin…**
+2. Select the downloaded archive and relaunch Qt Creator.
 
 ### Building from source
 
-> ⚠️ **Warning** ⚠️
->
-> As per Qt policies, major and minor versions of Qt Creator Plugin APIs are not compatible. This means that there is no guarantee that the plugin version on the master branch is compatible with any version of Qt Creator not specified in the cmake/FetchQtCreator.cmake file.
+> **Warning** — Qt Creator plugin APIs are versioned strictly by major and minor version.
+> The `master` branch targets the Qt Creator version pinned in
+> `cmake/FetchQtCreator.cmake`.  Check out the Git tag that matches your installed Qt
+> Creator version before building.
 
-1. Make sure you have Qt development files installed on your system.
-2. Clone this repository and go to its directory. Checkout a Git tag that is compatible with your Qt Creator version.
-3. `cmake -S . -B build/`.
-4. `cmake --build build/`. The compiled plugin will be inside `build/lib/qtcreator/plugins`.
-5. Open Qt Creator > Help > About Plugins > Install Plugin... Select the plugin you have built earlier.
-
-#### Updating
-
-Before updating from source, delete the `build` directory from earlier to avoid problems such as [this](https://github.com/sassanh/qnvim/issues/8#issuecomment-485456543).
-
-To update the plugin you need to recompile it: checkout a tag, that matches your Qt Creator version and execute the steps above again.
-
-### Arch Linux
-
-Arch Linux users can install [qnvim-git](https://aur.archlinux.org/packages/qnvim-git) from AUR via AUR helper or with the following commands:
+**Prerequisites:** Qt 6 development files and a C++17-capable compiler.
 
 ```bash
+# 1. Clone and enter the repository
+git clone https://github.com/sassanh/qnvim.git
+cd qnvim
+
+# 2. (Optional) check out the tag matching your Qt Creator version
+git checkout <tag>
+
+# 3. Configure and build
+cmake -S . -B build/
+cmake --build build/
+```
+
+The compiled plugin ends up in `build/lib/qtcreator/plugins/`.  Install it via
+**Help** → **About Plugins** → **Install Plugin…** as above.
+
+#### Updating from source
+
+Delete the `build/` directory before reconfiguring to avoid stale-cache issues:
+
+```bash
+rm -rf build/
+cmake -S . -B build/
+cmake --build build/
+```
+
+### Arch Linux (AUR)
+
+```bash
+# Via an AUR helper
+paru -S qnvim-git
+
+# Or manually
 git clone https://aur.archlinux.org/qnvim-git.git
 cd qnvim-git
 makepkg -si
@@ -67,17 +130,47 @@ makepkg -si
 
 ## Configuration
 
-You can add custom Vim commands for your Qt Creator environment in a `qnvim.vim` file located in the same directory as `init.vim` (`:help $MYVIMRC`). `$MYQVIMRC` is set to the path (mind the `Q` after `MY`).
+### Toggling QNVim
+
+Use **Tools** → **QNVim** → **Toggle QNVim** or the default shortcut
+**Alt+Shift+V, Alt+Shift+V** to enable or disable qnvim at runtime without restarting
+Qt Creator.
+
+### `qnvim.vim`
+
+Place a `qnvim.vim` file in the same directory as your `init.vim` / `init.lua`
+(`:help $MYVIMRC` shows the path).  The path is exposed to Neovim as `$MYQVIMRC` and the
+file is sourced automatically on startup.
+
+This is the right place to put Qt Creator-specific keybindings and settings that you do
+not want to bleed into your standalone Neovim sessions.
 
 ### Sample `qnvim.vim`
 
-There's a sample `examples/qnvim.vim` file available in the repository. It provides most of the convenient keyboard shortcuts for building, deploying, running, switching buffers, switching tabs, and more. It will also help you understand how to create new keyboard shortcuts using Qt Creator commands.
+`examples/qnvim.vim` in this repository demonstrates how to:
+
+- Map keys to Qt Creator actions (build, deploy, run, debug, etc.).
+- Switch between open editors and tabs.
+- Call any registered Qt Creator action by ID via `rpcnotify`.
+
+## Logging
+
+Two Qt logging categories are available for debugging:
+
+| Category | Default level | Content |
+|---|---|---|
+| `qtcreator.plugin.qnvim.core` | `debug` | General plugin lifecycle and RPC events |
+| `qtcreator.plugin.qnvim.buffer` | `warning` | Buffer synchronisation details |
+
+Enable them at runtime with:
+
+```bash
+QT_LOGGING_RULES="qtcreator.plugin.qnvim.*=true" qtcreator
+```
 
 ## Credits
 
-- [Neovim](https://neovim.io)
-- [Qt](https://www.qt.io)
-- [Qt Creator](https://www.qt.io/product)
-- [Neovim Qt](https://github.com/equalsraf/neovim-qt)
-
-And the libraries used in above projects and are mentioned in their docs.
+- [Neovim](https://neovim.io) — the embedded editor engine
+- [Qt](https://www.qt.io) — the application framework
+- [Qt Creator](https://www.qt.io/product) — the IDE this plugin extends
+- [neovim-qt](https://github.com/equalsraf/neovim-qt) — the Qt/msgpack-RPC bridge
