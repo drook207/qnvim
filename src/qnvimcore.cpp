@@ -21,6 +21,7 @@
 #include <projectexplorer/project.h>
 #include <projectexplorer/projectmanager.h>
 
+#include <qlogging.h>
 #include <texteditor/displaysettings.h>
 #include <texteditor/fontsettings.h>
 #include <texteditor/tabsettings.h>
@@ -55,7 +56,6 @@ namespace Internal {
 
 QNVimCore::QNVimCore(QObject *parent)
     : QObject{parent} {
-    qDebug(lcQNvimCore) << "QNVimCore::constructor";
 
     mCMDLine = new QPlainTextEdit;
     Core::StatusBarManager::addStatusBarWidget(mCMDLine, Core::StatusBarManager::First);
@@ -144,8 +144,9 @@ autocmd VimEnter * let $MYQVIMRC=substitute(substitute($MYVIMRC, 'init.vim$', 'q
             qInfo(lcQNvimCore) << "Neovim: attached!";
 
             auto pCurrentEditor = Core::EditorManager::currentEditor();
-            if (pCurrentEditor)
+            if (pCurrentEditor) {
                 QNVimCore::editorOpened(pCurrentEditor);
+            }
         });
 
         mNVim->api2()->nvim_subscribe("Gui");
@@ -213,13 +214,20 @@ QString QNVimCore::filename(Core::IEditor *editor) const {
 
 void QNVimCore::fixSize(Core::IEditor *editor) {
     if (!editor) {
+        qWarning(lcQNvimCore()) << "Editor must not be a nullptr!";
         return;
     }
 
-    if (!mNVim or !mNVim->isReady())
+    if (!mNVim or !mNVim->isReady()) {
+        qWarning(lcQNvimCore()) << "Neovim instance must not be a nullptr or is not ready yet!";
         return;
+    }
 
     auto textEditor = qobject_cast<TextEditor::TextEditorWidget *>(editor->widget());
+    if (!textEditor) {
+        qWarning(lcQNvimCore()) << "Editor widget must be a TextEditorWidget!";
+        return;
+    }
     QFontMetricsF fm(textEditor->textDocument()->fontSettings().font());
 
     // -1 is for the visual white spaces that Qt Creator adds (whether it renders them or not)
@@ -227,22 +235,32 @@ void QNVimCore::fixSize(Core::IEditor *editor) {
     const int width = qFloor(textEditor->viewport()->width() / fm.horizontalAdvance('A')) - 1 + 6;
     const int height = qFloor(textEditor->height() / fm.lineSpacing());
 
-    if (width != mWidth or height != mHeight)
+    if (width != mWidth or height != mHeight) {
         mNVim->api6()->nvim_ui_try_resize_grid(1, width, height);
+    }
 }
 
 void QNVimCore::syncCursorToVim(Core::IEditor *editor) {
-    if (!editor)
+    if (!editor) {
         editor = Core::EditorManager::currentEditor();
+    }
 
-    if (!editor or !mBuffers.contains(editor))
+    if (!editor or !mBuffers.contains(editor)) {
+        qWarning(lcQNvimCore()) << "Editor is not valid or not registered with a Neovim buffer!";
         return;
+    }
 
     auto textEditor = qobject_cast<TextEditor::TextEditorWidget *>(editor->widget());
+    if (!textEditor) {
+        qWarning(lcQNvimCore()) << "Editor widget must be a TextEditorWidget!";
+        return;
+    }
 
     if (mMode == "v" or mMode == "V" or mMode == "\x16" or
-        textEditor->textCursor().position() != textEditor->textCursor().anchor())
+        textEditor->textCursor().position() != textEditor->textCursor().anchor()) {
+        qInfo(lcQNvimCore()) << "Cursor position is managed by syncSelectionToVim in visual mode!";
         return;
+    }
 
     const auto text = textEditor->toPlainText();
     int cursorPosition = textEditor->textCursor().position();
@@ -250,6 +268,7 @@ void QNVimCore::syncCursorToVim(Core::IEditor *editor) {
     int col = text.left(cursorPosition).section('\n', -1).toUtf8().length() + 1;
 
     if (line == mCursor.y() and col == mCursor.x()) {
+        qInfo(lcQNvimCore()) << "Cursor position has not changed since the last sync!";
         return;
     }
 
@@ -259,19 +278,29 @@ void QNVimCore::syncCursorToVim(Core::IEditor *editor) {
 }
 
 void QNVimCore::syncSelectionToVim(Core::IEditor *editor) {
-    if (!editor)
+    if (!editor) {
         editor = Core::EditorManager::currentEditor();
+    }
 
-    if (!editor or !mBuffers.contains(editor))
+    if (!editor or !mBuffers.contains(editor)) {
+        qWarning(lcQNvimCore()) << "Editor is not valid or not registered with a Neovim buffer!";
         return;
+    }
 
     auto textEditor = qobject_cast<TextEditor::TextEditorWidget *>(editor->widget());
+    if (!textEditor) {
+        qWarning(lcQNvimCore()) << "Editor widget must be a TextEditorWidget!";
+        return;
+    }
     QString text = textEditor->toPlainText();
 
     auto mtc = textEditor->multiTextCursor();
     int line, col, vLine, vCol;
 
     QString visualCommand;
+    if (mMode == "V") {
+        return;
+    }
     if (mtc.hasMultipleCursors()) {
         auto mainCursor = mtc.mainCursor();
 
@@ -293,21 +322,21 @@ void QNVimCore::syncSelectionToVim(Core::IEditor *editor) {
         vLine = QStringView(text).left(nvimAnchor).count('\n') + 1;
         vCol = text.left(nvimAnchor).section('\n', -1).length() + 1;
 
-        if (vCol < col)
+        if (vCol < col) {
             --col;
-        else if (vCol > col)
+        } else if (vCol > col) {
             --vCol;
+        }
 
         visualCommand = "\x16";
-    } else if (mMode == "V") {
-        return;
     } else {
         auto cursor = textEditor->textCursor();
         int cursorPosition = cursor.position();
         int anchorPosition = cursor.anchor();
 
-        if (anchorPosition == cursorPosition)
+        if (anchorPosition == cursorPosition) {
             return;
+        }
 
         if (anchorPosition < cursorPosition)
             --cursorPosition;
@@ -321,8 +350,9 @@ void QNVimCore::syncSelectionToVim(Core::IEditor *editor) {
         visualCommand = "v";
     }
 
-    if (line == mCursor.y() and col == mCursor.x() and vLine == mVCursor.y() and vCol == mVCursor.x())
+    if (line == mCursor.y() and col == mCursor.x() and vLine == mVCursor.y() and vCol == mVCursor.x()) {
         return;
+    }
 
     mCursor.setY(line);
     mCursor.setX(col);
