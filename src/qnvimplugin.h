@@ -12,7 +12,7 @@ namespace Internal {
 class QNVimCore;
 class NumbersColumn;
 
-class QNVimPlugin : public ExtensionSystem::IPlugin {
+class QNVimPlugin final : public ExtensionSystem::IPlugin {
     Q_OBJECT
     Q_PLUGIN_METADATA(IID "org.qt-project.Qt.QtCreatorPlugin" FILE "QNVim.json")
 

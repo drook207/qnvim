@@ -24,3 +24,22 @@ add_qtc_plugin(QNVim
     qnvimcore.cpp
     qnvimcore.h
 )
+# Enable the Run button in Qt Creator
+get_target_property(QtCreatorCorePath QtCreator::Core LOCATION)
+message(STATUS "QtCreator Path: ${QtCreatorCorePath}")
+find_program(QtCreatorExecutable
+  NAMES
+    qtcreator "Qt Creator"
+  #PATHS
+   # "${QtCreatorCorePath}/../../../bin"
+    #"${QtCreatorCorePath}/../../../MacOS"
+  #NO_DEFAULT_PATH
+)
+if (QtCreatorExecutable)
+  message(STATUS "Add qtcreator custom target")
+  add_custom_target(RunQtCreator
+    COMMAND ${QtCreatorExecutable} -pluginpath $<TARGET_FILE_DIR:QNVim>
+    DEPENDS QNVim
+  )
+  set_target_properties(RunQtCreator PROPERTIES FOLDER "qtc_runnable")
+endif()

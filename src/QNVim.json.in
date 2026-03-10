@@ -1,11 +1,15 @@
 {
+    "Id" : "qnvim",
     "Name" : "QNVim",
-    "Version" : "${IDE_VERSION}",
-    "Vendor" : "Sassan Haradji",
-    "Copyright" : "(C) Sassan Haradji",
+    "Version" : "0.0.1",
+    "CompatVersion" : "0.0.1",
+    "Vendor" : "drook207",
+    "VendorId" : "drook207",
+    "Copyright" : "(C) drook207",
     "License" : "MIT",
-    "Description" : "Neovim Backend for Qt Creator",
-    "Url" : "https://github.com/sassanh/qnvim"
-
+    "Description" : "A plugin that let you use neovim inside qtcreator ",
+    "Url" : "https://www.github.com/drook207/qnvim",
+    "DocumentationUrl" : "",
+    ${IDE_PLUGIN_DEPENDENCIES}
     
 }
